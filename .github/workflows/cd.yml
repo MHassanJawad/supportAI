@@ -1,0 +1,11 @@
+name: CD
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deployment-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "Deploy through Vercel and Render connected projects after CI passes."
