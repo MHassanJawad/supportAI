@@ -42,6 +42,14 @@ interface AnalyticsSummary {
   mostAskedQuestions: Array<{ question: string; count: number }>;
 }
 
+interface ChatSource {
+  documentId: string;
+  documentName: string;
+  chunkId: string;
+  score: number;
+  excerpt: string;
+}
+
 type ActionName = "refresh" | "business" | "upload" | "faq" | "chat";
 
 export function Dashboard() {
@@ -52,6 +60,7 @@ export function Dashboard() {
   const [conversationId, setConversationId] = useState("");
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
+  const [answerSources, setAnswerSources] = useState<ChatSource[]>([]);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [busyAction, setBusyAction] = useState<ActionName | null>("refresh");
@@ -116,7 +125,8 @@ export function Dashboard() {
       return;
     }
 
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const name = String(form.get("name") ?? "").trim();
     const industry = String(form.get("industry") ?? "").trim();
 
@@ -134,7 +144,7 @@ export function Dashboard() {
         method: "POST",
         body: JSON.stringify({ name, industry })
       });
-      event.currentTarget.reset();
+      formElement.reset();
       setNotice(`${name} was created successfully.`);
       await refresh({ silent: true });
     } catch (createError) {
@@ -150,7 +160,8 @@ export function Dashboard() {
       return;
     }
 
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     if (!form.get("file")) {
       setError("Choose a PDF or TXT file before uploading.");
       return;
@@ -162,7 +173,7 @@ export function Dashboard() {
 
     try {
       await apiRequest("/api/v1/documents", { method: "POST", body: form });
-      event.currentTarget.reset();
+      formElement.reset();
       setNotice("Document uploaded and queued for processing.");
       await refresh({ silent: true });
     } catch (uploadError) {
@@ -178,7 +189,8 @@ export function Dashboard() {
       return;
     }
 
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const faqQuestion = String(form.get("question") ?? "").trim();
     const faqAnswer = String(form.get("answer") ?? "").trim();
 
@@ -196,7 +208,7 @@ export function Dashboard() {
         method: "POST",
         body: JSON.stringify({ question: faqQuestion, answer: faqAnswer })
       });
-      event.currentTarget.reset();
+      formElement.reset();
       setNotice("FAQ added.");
       await refresh({ silent: true });
     } catch (faqError) {
@@ -232,13 +244,21 @@ export function Dashboard() {
         ).id;
 
       setConversationId(conversation);
-      const response = await apiRequest<{ answer: string }>(`/api/v1/chat/conversations/${conversation}/messages`, {
-        method: "POST",
-        body: JSON.stringify({ content: trimmedQuestion })
-      });
+      const response = await apiRequest<{ answer: string; sources: ChatSource[] }>(
+        `/api/v1/chat/conversations/${conversation}/messages`,
+        {
+          method: "POST",
+          body: JSON.stringify({ content: trimmedQuestion })
+        }
+      );
       setAnswer(response.answer);
+      setAnswerSources(response.sources);
       setQuestion("");
-      setNotice("Answer generated.");
+      setNotice(
+        response.sources.length > 0
+          ? `Answer generated from ${response.sources.length} retrieved source chunk${response.sources.length === 1 ? "" : "s"}.`
+          : "Answer generated, but no matching knowledge-base chunks were retrieved."
+      );
       await refresh({ silent: true });
     } catch (chatError) {
       setError(getErrorMessage(chatError));
@@ -410,6 +430,27 @@ export function Dashboard() {
               {busyAction === "chat" ? "Thinking..." : "Ask"}
             </button>
             {answer ? <p className="mt-4 rounded border border-line bg-mist p-3 text-sm">{answer}</p> : null}
+            {answer ? (
+              <div className="mt-3 space-y-2">
+                <p className="text-sm font-medium text-ink">Retrieved sources</p>
+                {answerSources.length > 0 ? (
+                  answerSources.map((source) => (
+                    <div className="rounded border border-line p-2 text-sm" key={source.chunkId}>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="min-w-0 truncate font-medium">{source.documentName}</p>
+                        <span className="shrink-0 text-xs text-slate-500">{source.score.toFixed(3)}</span>
+                      </div>
+                      <p className="mt-1 line-clamp-4 text-slate-600">{source.excerpt}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="rounded border border-dashed border-line p-3 text-sm text-slate-500">
+                    No chunks were retrieved. Check that the document status is ready and that the question uses words from
+                    the PDF.
+                  </p>
+                )}
+              </div>
+            ) : null}
           </Panel>
 
           <Panel title="Workspace Status">

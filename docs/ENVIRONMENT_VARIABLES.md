@@ -14,6 +14,7 @@
 | `SUPABASE_STORAGE_BUCKET` | Yes | API | Knowledge-base bucket name. |
 | `GEMINI_API_KEY` | Yes | API | Gemini API access. |
 | `GEMINI_EMBEDDING_MODEL` | Yes | API | Embedding model name. |
+| `GEMINI_EMBEDDING_DIMENSIONS` | Yes | API | Embedding output dimension; keep `768` for the current pgvector schema. |
 | `GEMINI_GENERATION_MODEL` | Yes | API | Generation model name. |
 | `RATE_LIMIT_WINDOW_MS` | Yes | API | Rate-limit window. |
 | `RATE_LIMIT_MAX` | Yes | API | Max requests per window. |

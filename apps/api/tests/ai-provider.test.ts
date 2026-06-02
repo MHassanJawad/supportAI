@@ -7,6 +7,7 @@ describe("buildRagPrompt", () => {
     process.env.SUPABASE_ANON_KEY = "anon";
     process.env.SUPABASE_SERVICE_ROLE_KEY = "service";
     process.env.GEMINI_API_KEY = "gemini";
+    process.env.GEMINI_EMBEDDING_DIMENSIONS = "768";
     const { buildRagPrompt } = await import("../src/services/ai-provider");
     const prompt = buildRagPrompt("What is the refund window?", "Refunds are available for 14 days.");
 

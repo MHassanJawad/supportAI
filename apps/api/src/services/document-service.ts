@@ -20,7 +20,21 @@ export async function uploadAndProcessDocument(file: Express.Multer.File, busine
     .upload(storagePath, file.buffer, { contentType: file.mimetype, upsert: false });
 
   if (uploadError) {
-    throw new AppError("UPLOAD_REJECTED", "Could not upload document to storage.", 400);
+    console.error(
+      JSON.stringify({
+        level: "error",
+        message: "Supabase storage upload failed",
+        bucket: env.SUPABASE_STORAGE_BUCKET,
+        storagePath,
+        file: {
+          originalName: file.originalname,
+          mimeType: file.mimetype,
+          size: file.size
+        },
+        supabaseError: toSafeSupabaseError(uploadError)
+      })
+    );
+    throw new AppError("UPLOAD_REJECTED", getStorageUploadMessage(uploadError), 400);
   }
 
   const { data: document, error: documentError } = await supabaseAdmin
@@ -43,9 +57,24 @@ export async function uploadAndProcessDocument(file: Express.Multer.File, busine
     const text = await extractText(file);
     const chunks = chunkText(text);
 
+    console.log(
+      JSON.stringify({
+        level: "info",
+        message: "Document text extracted",
+        documentId: document.id,
+        filename: safeName,
+        textLength: text.length,
+        chunkCount: chunks.length
+      })
+    );
+
+    if (chunks.length === 0) {
+      throw new AppError("UPLOAD_REJECTED", "No readable text was extracted from this document.", 400);
+    }
+
     for (const [index, chunk] of chunks.entries()) {
-      const embedding = await aiProvider.embed(chunk.content);
-      await supabaseAdmin.from("document_chunks").insert({
+      const embedding = await aiProvider.embed(chunk.content, "RETRIEVAL_DOCUMENT", safeName);
+      const { error: chunkError } = await supabaseAdmin.from("document_chunks").insert({
         business_id: businessId,
         document_id: document.id,
         chunk_text: chunk.content,
@@ -53,6 +82,19 @@ export async function uploadAndProcessDocument(file: Express.Multer.File, busine
         chunk_index: index,
         token_estimate: chunk.tokenEstimate
       });
+
+      if (chunkError) {
+        console.error(
+          JSON.stringify({
+            level: "error",
+            message: "Document chunk insert failed",
+            documentId: document.id,
+            chunkIndex: index,
+            supabaseError: toSafeSupabaseError(chunkError)
+          })
+        );
+        throw new AppError("DATABASE_ERROR", "Could not store document chunk embedding.", 500);
+      }
     }
 
     await supabaseAdmin.from("documents").update({ status: "ready" }).eq("id", document.id);
@@ -62,6 +104,69 @@ export async function uploadAndProcessDocument(file: Express.Multer.File, busine
   }
 
   return document;
+}
+
+function getStorageUploadMessage(error: unknown): string {
+  const message = getSupabaseMessage(error);
+  const statusCode = getSupabaseStatusCode(error);
+
+  if (statusCode === 404 || message.includes("bucket not found") || message.includes("not found")) {
+    return "Could not upload document because the Supabase Storage bucket was not found. Create a bucket named knowledge-base or update SUPABASE_STORAGE_BUCKET.";
+  }
+
+  if (statusCode === 401 || statusCode === 403 || message.includes("invalid api key")) {
+    return "Could not upload document because Supabase rejected the API key or storage permission. Check SUPABASE_SERVICE_ROLE_KEY and restart the API.";
+  }
+
+  if (message.includes("row-level security") || message.includes("violates row-level security")) {
+    return "Could not upload document because Supabase Storage policies blocked the upload. Use the service role key on the API or add storage policies.";
+  }
+
+  return "Could not upload document to storage. Check the API log for the Supabase Storage error code.";
+}
+
+function getSupabaseMessage(error: unknown): string {
+  if (!error || typeof error !== "object" || !("message" in error)) {
+    return "";
+  }
+
+  return String(error.message).toLowerCase();
+}
+
+function getSupabaseStatusCode(error: unknown): number | null {
+  if (!error || typeof error !== "object") {
+    return null;
+  }
+
+  const candidate = error as { statusCode?: number | string; status?: number | string };
+  const value = candidate.statusCode ?? candidate.status;
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function toSafeSupabaseError(error: unknown) {
+  if (!error || typeof error !== "object") {
+    return null;
+  }
+
+  const candidate = error as {
+    code?: string;
+    message?: string;
+    details?: string;
+    hint?: string;
+    status?: number | string;
+    statusCode?: number | string;
+  };
+
+  return {
+    code: candidate.code,
+    message: candidate.message,
+    details: candidate.details,
+    hint: candidate.hint,
+    status: candidate.status,
+    statusCode: candidate.statusCode
+  };
 }
 
 export async function listDocuments(businessId: string) {
@@ -99,7 +204,7 @@ export async function retrieveRelevantChunks(
   question: string,
   limit = 5
 ): Promise<SourceReference[]> {
-  const embedding = await aiProvider.embed(question);
+  const embedding = await aiProvider.embed(question, "RETRIEVAL_QUERY");
   const { data, error } = await supabaseAdmin.rpc("match_document_chunks", {
     query_embedding: embedding,
     match_business_id: businessId,
@@ -107,16 +212,36 @@ export async function retrieveRelevantChunks(
   });
 
   if (error) {
+    console.error(
+      JSON.stringify({
+        level: "error",
+        message: "Document chunk retrieval failed",
+        businessId,
+        supabaseError: toSafeSupabaseError(error)
+      })
+    );
     throw new AppError("DATABASE_ERROR", "Could not retrieve relevant knowledge base chunks.", 500);
   }
 
-  return (data ?? []).map((row: Record<string, unknown>) => ({
+  const sources = (data ?? []).map((row: Record<string, unknown>) => ({
     documentId: String(row.document_id),
     documentName: String(row.filename),
     chunkId: String(row.id),
     score: Number(row.similarity),
     excerpt: String(row.chunk_text)
   }));
+
+  console.log(
+    JSON.stringify({
+      level: "info",
+      message: "Document chunks retrieved",
+      businessId,
+      sourceCount: sources.length,
+      topScore: sources[0]?.score ?? null
+    })
+  );
+
+  return sources;
 }
 
 function assertAllowedFile(file: Express.Multer.File): void {
