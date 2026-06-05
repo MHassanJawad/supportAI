@@ -1,5 +1,5 @@
 // Marketing landing page for SupportAI.
-import { ArrowRight, BarChart3, Bot, Building2, Lock, MessageSquare, Sparkles, Upload, Users } from "lucide-react";
+import { ArrowRight, BarChart3, Bot, Building2, MessageSquare, Sparkles, Upload, Users } from "lucide-react";
 import Link from "next/link";
 import { Reveal } from "../components/Reveal";
 import { ThemeToggle } from "../components/ThemeToggle";
@@ -53,64 +53,68 @@ export default function HomePage() {
         </nav>
       </header>
 
-      <section className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-12 sm:px-5 lg:grid-cols-[1fr_0.9fr] lg:py-20">
-        <Reveal>
-          <div>
-            <p className="inline-flex items-center gap-2 rounded-full border border-line bg-panel px-3 py-2 text-sm font-semibold text-accent shadow-sm">
-              <Lock className="h-4 w-4" />
-              Tenant-isolated RAG support platform
-            </p>
-            <h1 className="fluid-title mt-6 max-w-4xl font-display font-semibold">
+      <section className="relative overflow-hidden border-b border-line">
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url('/media/heroImager.webp')" }}
+        />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(245,247,251,0.92)_0%,rgba(245,247,251,0.78)_42%,rgba(245,247,251,0.38)_72%,rgba(245,247,251,0.12)_100%)] dark:bg-[linear-gradient(90deg,rgba(11,16,32,0.94)_0%,rgba(11,16,32,0.80)_42%,rgba(11,16,32,0.48)_72%,rgba(11,16,32,0.22)_100%)]" />
+        <div className="relative mx-auto grid min-h-[calc(100vh-73px)] max-w-7xl items-center gap-8 px-4 py-10 sm:px-5 lg:grid-cols-[1fr_0.82fr] lg:py-12">
+          <Reveal>
+            <div>
+              <h1 className="fluid-title max-w-4xl font-display font-semibold">
               Turn business knowledge into instant customer support.
-            </h1>
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-muted">
+              </h1>
+              <p className="mt-5 max-w-2xl text-lg leading-8 text-muted">
               SupportAI gives every business a modern support portal backed by its own documents, FAQs, and AI retrieval
               pipeline. Customers ask questions. The system retrieves context. Gemini answers with grounded support.
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-accent px-6 py-3 font-semibold text-white shadow-soft"
-                href="/business/auth"
-              >
-                Register your business
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line bg-panel px-6 py-3 font-semibold text-ink shadow-sm"
-                href="/customer/auth"
-              >
-                Access a business portal
-                <Users className="h-4 w-4" />
-              </Link>
-            </div>
-          </div>
-        </Reveal>
-
-        <Reveal delay={120}>
-          <div className="surface rounded-[24px] p-4">
-            <div className="rounded-[20px] bg-[var(--color-panel-strong)] p-4">
-              <div className="mb-5 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted">Customer chat preview</p>
-                  <p className="font-display text-xl font-semibold">Acme Support Center</p>
-                </div>
-                <span className="rounded-full bg-accent/10 px-3 py-1 text-sm font-medium text-accent">Powered by AI</span>
+              </p>
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <Link
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-accent px-6 py-3 font-semibold text-white shadow-soft"
+                  href="/business/auth"
+                >
+                  Register your business
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+                <Link
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line bg-panel px-6 py-3 font-semibold text-ink shadow-sm"
+                  href="/customer/auth"
+                >
+                  Access a business portal
+                  <Users className="h-4 w-4" />
+                </Link>
               </div>
-              <div className="space-y-3">
-                <p className="ml-auto max-w-sm rounded-2xl bg-accent px-4 py-3 text-sm leading-6 text-white">
-                  How long do refunds take?
-                </p>
-                <div className="max-w-md rounded-2xl border border-line bg-panel p-4 text-sm leading-6">
-                  Refund requests are reviewed within 2 business days. Approved refunds are issued to the original payment
-                  method.
-                  <div className="mt-3 rounded-xl border border-line bg-mist p-3 text-xs text-muted">
-                    Source: refund-policy.txt - similarity 0.842
+            </div>
+          </Reveal>
+
+          <Reveal delay={120}>
+            <div className="surface rounded-[24px] p-4">
+              <div className="rounded-[20px] bg-[var(--color-panel-strong)] p-4">
+                <div className="mb-5 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted">Customer chat preview</p>
+                    <p className="font-display text-xl font-semibold">Acme Support Center</p>
+                  </div>
+                  <span className="rounded-full bg-accent/10 px-3 py-1 text-sm font-medium text-accent">Powered by AI</span>
+                </div>
+                <div className="space-y-3">
+                  <p className="ml-auto max-w-sm rounded-2xl bg-accent px-4 py-3 text-sm leading-6 text-white">
+                    How long do refunds take?
+                  </p>
+                  <div className="max-w-md rounded-2xl border border-line bg-panel p-4 text-sm leading-6">
+                    Refund requests are reviewed within 2 business days. Approved refunds are issued to the original payment
+                    method.
+                    <div className="mt-3 rounded-xl border border-line bg-mist p-3 text-xs text-muted">
+                      Source: refund-policy.txt - similarity 0.842
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        </Reveal>
+          </Reveal>
+        </div>
       </section>
 
       <section className="border-y border-line bg-panel">
