@@ -1,11 +1,16 @@
-// Authentication panel for Supabase email/password sessions.
+// Role-aware authentication panel for Supabase email/password sessions.
 "use client";
 
-import { useEffect, useState } from "react";
-import { ArrowRight, Building2, LogIn, ShieldCheck, UserPlus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Building2, LogIn, ShieldCheck, UserPlus, Users } from "lucide-react";
+import Link from "next/link";
 import { supabase, supabaseConfigError } from "../lib/supabase";
 
-export function AuthPanel() {
+type AuthRole = "business" | "customer";
+
+export function AuthPanel({ role }: { role: AuthRole }) {
+  const router = useRouter();
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
   const [registerName, setRegisterName] = useState("");
@@ -16,6 +21,36 @@ export function AuthPanel() {
   const [loginMessage, setLoginMessage] = useState("");
   const [registerMessage, setRegisterMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const copy = useMemo(
+    () =>
+      role === "business"
+        ? {
+            eyebrow: "Business access",
+            heading: "Manage your AI support workspace.",
+            body: "Upload documents, manage FAQs, inspect customer questions, and publish a support portal for your customers.",
+            loginTitle: "Business login",
+            registerTitle: "Register business",
+            registerBody: "Create an owner account for a new business workspace.",
+            redirectTo: "/business/dashboard" as const,
+            alternateHref: "/customer/auth" as const,
+            alternateLabel: "Customer login",
+            icon: <Building2 className="h-5 w-5" />
+          }
+        : {
+            eyebrow: "Customer access",
+            heading: "Find answers from businesses you use.",
+            body: "Use your customer dashboard to browse available support portals and ask questions from business knowledge bases.",
+            loginTitle: "Customer login",
+            registerTitle: "Register customer",
+            registerBody: "Create a customer account for support access.",
+            redirectTo: "/customer/dashboard" as const,
+            alternateHref: "/business/auth" as const,
+            alternateLabel: "Business login",
+            icon: <Users className="h-5 w-5" />
+          },
+    [role]
+  );
 
   useEffect(() => {
     if (supabaseConfigError) {
@@ -30,13 +65,8 @@ export function AuthPanel() {
     }
 
     const normalizedEmail = loginEmail.trim();
-    if (!normalizedEmail) {
-      setLoginMessage("Enter an email address.");
-      return;
-    }
-
-    if (!loginPassword) {
-      setLoginMessage("Enter a password.");
+    if (!normalizedEmail || !loginPassword) {
+      setLoginMessage("Enter your email and password.");
       return;
     }
 
@@ -56,7 +86,7 @@ export function AuthPanel() {
         return;
       }
 
-      setLoginMessage("Signed in.");
+      router.push(copy.redirectTo);
     } catch {
       setLoginMessage("Unable to reach auth service. Verify Supabase URL/key and network connectivity.");
     } finally {
@@ -75,13 +105,13 @@ export function AuthPanel() {
       return;
     }
 
-    if (!registerCompany.trim()) {
+    if (role === "business" && !registerCompany.trim()) {
       setRegisterMessage("Enter your business name.");
       return;
     }
 
     if (!normalizedEmail) {
-      setRegisterMessage("Enter a work email address.");
+      setRegisterMessage(role === "business" ? "Enter a work email address." : "Enter an email address.");
       return;
     }
 
@@ -109,14 +139,20 @@ export function AuthPanel() {
         password: registerPassword,
         options: {
           data: {
+            account_type: role,
             full_name: registerName.trim(),
-            company_name: registerCompany.trim()
+            ...(role === "business" ? { company_name: registerCompany.trim() } : {})
           }
         }
       });
 
       if (result.error) {
         setRegisterMessage(result.error.message);
+        return;
+      }
+
+      if (result.data.session) {
+        router.push(copy.redirectTo);
         return;
       }
 
@@ -132,20 +168,21 @@ export function AuthPanel() {
     <main className="min-h-screen bg-mist px-5 py-8">
       <div className="mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-6xl items-center gap-6 lg:grid-cols-[0.9fr_1.1fr]">
         <section className="space-y-6">
+          <Link className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-ink" href="/">
+            <ArrowLeft className="h-4 w-4" />
+            Back to home
+          </Link>
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wider text-teal">SupportAI</p>
-            <h1 className="mt-3 max-w-xl text-4xl font-semibold leading-tight text-ink sm:text-5xl">
-              Customer support knowledge, ready for every answer.
-            </h1>
-            <p className="mt-4 max-w-lg text-base leading-7 text-slate-600">
-              Sign in to manage your workspace, or create a new business account to start building a tenant-isolated
-              support assistant.
-            </p>
+            <p className="text-sm font-semibold uppercase tracking-wider text-teal">{copy.eyebrow}</p>
+            <h1 className="mt-3 max-w-xl text-4xl font-semibold leading-tight text-ink sm:text-5xl">{copy.heading}</h1>
+            <p className="mt-4 max-w-lg text-base leading-7 text-slate-600">{copy.body}</p>
           </div>
           <div className="grid gap-3 text-sm text-slate-700 sm:grid-cols-3 lg:grid-cols-1">
-            <TrustItem icon={<ShieldCheck className="h-4 w-4" />} label="Supabase Auth sessions" />
-            <TrustItem icon={<Building2 className="h-4 w-4" />} label="Business-scoped knowledge bases" />
-            <TrustItem icon={<ArrowRight className="h-4 w-4" />} label="Gemini-backed RAG answers" />
+            <TrustItem icon={<ShieldCheck className="h-4 w-4" />} label="Secure Supabase sessions" />
+            <TrustItem icon={copy.icon} label={role === "business" ? "Owner workspace" : "Customer dashboard"} />
+            <Link className="rounded border border-line bg-white px-3 py-2 shadow-sm hover:bg-white/70" href={copy.alternateHref}>
+              {copy.alternateLabel}
+            </Link>
           </div>
         </section>
 
@@ -155,8 +192,8 @@ export function AuthPanel() {
               <div className="mb-3 flex h-10 w-10 items-center justify-center rounded bg-ink text-white">
                 <LogIn className="h-5 w-5" />
               </div>
-              <h2 className="text-xl font-semibold text-ink">Sign in</h2>
-              <p className="mt-1 text-sm text-slate-600">Access an existing SupportAI workspace.</p>
+              <h2 className="text-xl font-semibold text-ink">{copy.loginTitle}</h2>
+              <p className="mt-1 text-sm text-slate-600">Access your existing account.</p>
             </div>
             <div className="space-y-3">
               <input
@@ -190,8 +227,8 @@ export function AuthPanel() {
               <div className="mb-3 flex h-10 w-10 items-center justify-center rounded bg-teal text-white">
                 <UserPlus className="h-5 w-5" />
               </div>
-              <h2 className="text-xl font-semibold text-ink">Create account</h2>
-              <p className="mt-1 text-sm text-slate-600">Start a new business workspace.</p>
+              <h2 className="text-xl font-semibold text-ink">{copy.registerTitle}</h2>
+              <p className="mt-1 text-sm text-slate-600">{copy.registerBody}</p>
             </div>
             <div className="space-y-3">
               <input
@@ -200,16 +237,18 @@ export function AuthPanel() {
                 placeholder="Full name"
                 value={registerName}
               />
-              <input
-                className="w-full rounded border border-line px-3 py-2"
-                onChange={(event) => setRegisterCompany(event.target.value)}
-                placeholder="Business name"
-                value={registerCompany}
-              />
+              {role === "business" ? (
+                <input
+                  className="w-full rounded border border-line px-3 py-2"
+                  onChange={(event) => setRegisterCompany(event.target.value)}
+                  placeholder="Business name"
+                  value={registerCompany}
+                />
+              ) : null}
               <input
                 className="w-full rounded border border-line px-3 py-2"
                 onChange={(event) => setRegisterEmail(event.target.value)}
-                placeholder="Work email"
+                placeholder={role === "business" ? "Work email" : "Email"}
                 type="email"
                 value={registerEmail}
               />

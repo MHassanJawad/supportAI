@@ -2,20 +2,129 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap");
+
 :root {
   color-scheme: light;
-  background: #f5f7fb;
-  color: #17202a;
+  --color-primary: #0f1c3f;
+  --color-primary-soft: #e9eefc;
+  --color-accent: #00a989;
+  --color-accent-strong: #007f6d;
+  --color-bg: #f5f7fb;
+  --color-panel: #ffffff;
+  --color-panel-strong: #f9fbff;
+  --color-text: #17202a;
+  --color-muted: #64748b;
+  --color-line: #d8dee9;
+  --color-danger: #c2410c;
+  --color-success: #0f766e;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --color-primary: #d9e6ff;
+  --color-primary-soft: #17213d;
+  --color-accent: #00c9a7;
+  --color-accent-strong: #7af7de;
+  --color-bg: #0b1020;
+  --color-panel: #111827;
+  --color-panel-strong: #172036;
+  --color-text: #eef4ff;
+  --color-muted: #a9b6cc;
+  --color-line: #2b3650;
+  --color-danger: #ff9a76;
+  --color-success: #6ee7cf;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  background: #f5f7fb;
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--color-accent) 12%, transparent), transparent 34rem),
+    var(--color-bg);
+  font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui;
+  color: var(--color-text);
 }
 
 button,
 input,
-textarea {
+textarea,
+select {
   font: inherit;
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  outline-offset: 3px;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-accent) 55%, transparent);
+}
+
+button,
+a {
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+button:hover,
+a:hover {
+  transform: translateY(-1px);
+}
+
+.fluid-title {
+  font-size: clamp(2.35rem, 7vw, 5.8rem);
+  line-height: 0.96;
+  letter-spacing: 0;
+}
+
+.fluid-heading {
+  font-size: clamp(1.55rem, 3vw, 2.6rem);
+  line-height: 1.1;
+}
+
+.surface {
+  background: color-mix(in srgb, var(--color-panel) 94%, transparent);
+  border: 1px solid var(--color-line);
+  box-shadow: 0 18px 50px rgba(15, 28, 63, 0.1);
+}
+
+.animate-in {
+  animation: rise-in 520ms ease both;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }

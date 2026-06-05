@@ -12,6 +12,7 @@ import { chatRouter } from "./routes/chat-routes";
 import { documentRouter } from "./routes/document-routes";
 import { faqRouter } from "./routes/faq-routes";
 import { profileRouter } from "./routes/profile-routes";
+import { publicRouter } from "./routes/public-routes";
 
 export function createApp() {
   const app = express();
@@ -37,6 +38,10 @@ export function createApp() {
   app.get("/health", (_req, res) => {
     res.json({ data: { status: "ok", service: "supportai-api" } });
   });
+
+  const publicApi = express.Router();
+  publicApi.use(publicRouter);
+  app.use("/api/v1/public", publicApi);
 
   const api = express.Router();
   api.use(requireAuth);

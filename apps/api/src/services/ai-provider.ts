@@ -44,7 +44,15 @@ export class GeminiAiProvider implements AiProvider {
         throw new Error(payload.error?.message ?? `Gemini embedding HTTP ${response.status}`);
       }
 
-      return payload.embedding.values;
+      const values = payload.embedding.values;
+
+      if (values.length < env.GEMINI_EMBEDDING_DIMENSIONS) {
+        throw new Error(
+          `Gemini returned ${values.length} embedding dimensions, expected ${env.GEMINI_EMBEDDING_DIMENSIONS}.`
+        );
+      }
+
+      return values.slice(0, env.GEMINI_EMBEDDING_DIMENSIONS);
     } catch (error) {
       console.error(
         JSON.stringify({

@@ -78,7 +78,7 @@ export async function uploadAndProcessDocument(file: Express.Multer.File, busine
         business_id: businessId,
         document_id: document.id,
         chunk_text: chunk.content,
-        embedding,
+        embedding: toPgVector(embedding),
         chunk_index: index,
         token_estimate: chunk.tokenEstimate
       });
@@ -206,7 +206,7 @@ export async function retrieveRelevantChunks(
 ): Promise<SourceReference[]> {
   const embedding = await aiProvider.embed(question, "RETRIEVAL_QUERY");
   const { data, error } = await supabaseAdmin.rpc("match_document_chunks", {
-    query_embedding: embedding,
+    query_embedding: toPgVector(embedding),
     match_business_id: businessId,
     match_count: limit
   });
@@ -242,6 +242,10 @@ export async function retrieveRelevantChunks(
   );
 
   return sources;
+}
+
+function toPgVector(values: number[]): string {
+  return `[${values.map((value) => Number(value).toFixed(8)).join(",")}]`;
 }
 
 function assertAllowedFile(file: Express.Multer.File): void {
