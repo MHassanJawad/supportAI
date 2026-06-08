@@ -6,6 +6,7 @@ create table if not exists public.businesses (
   id uuid primary key default gen_random_uuid(),
   name text not null check (char_length(name) between 2 and 120),
   industry text not null check (char_length(industry) between 2 and 80),
+  address text not null check (char_length(address) between 5 and 240),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

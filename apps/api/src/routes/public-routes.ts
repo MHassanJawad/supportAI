@@ -15,7 +15,7 @@ publicRouter.get(
   asyncRoute(async (_req, res) => {
     const { data, error } = await supabaseAdmin
       .from("businesses")
-      .select("id, name, industry, created_at")
+      .select("id, name, industry, address, created_at")
       .order("created_at", { ascending: false });
 
     if (error) {
@@ -69,7 +69,7 @@ publicRouter.post(
 async function getPublicBusiness(businessId: string) {
   const { data, error } = await supabaseAdmin
     .from("businesses")
-    .select("id, name, industry, created_at")
+    .select("id, name, industry, address, created_at")
     .eq("id", businessId)
     .maybeSingle();
 

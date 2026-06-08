@@ -30,6 +30,7 @@ interface Business {
   id: string;
   name: string;
   industry: string;
+  address: string;
   created_at: string;
 }
 
@@ -165,9 +166,10 @@ export function Dashboard() {
     const form = new FormData(formElement);
     const name = String(form.get("name") ?? "").trim();
     const industry = String(form.get("industry") ?? "").trim();
+    const address = String(form.get("address") ?? "").trim();
 
-    if (!name || !industry) {
-      setError("Enter both business name and industry.");
+    if (!name || !industry || !address) {
+      setError("Enter the business name, industry, and address.");
       return;
     }
 
@@ -178,7 +180,7 @@ export function Dashboard() {
     try {
       await apiRequest("/api/v1/businesses", {
         method: "POST",
-        body: JSON.stringify({ name, industry })
+        body: JSON.stringify({ name, industry, address })
       });
       formElement.reset();
       setNotice(`${name} was created successfully.`);
@@ -419,6 +421,7 @@ export function Dashboard() {
                   <div className="rounded-2xl border border-line bg-mist p-4">
                     <p className="font-display text-xl font-semibold">{activeBusiness.name}</p>
                     <p className="mt-1 text-sm text-muted">{activeBusiness.industry}</p>
+                    <p className="mt-2 text-sm text-muted">{activeBusiness.address}</p>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <a
@@ -440,6 +443,7 @@ export function Dashboard() {
                 <form className="grid gap-3" onSubmit={createBusiness}>
                   <Field label="Business Name" name="name" placeholder="Acme Retail" />
                   <Field label="Industry" name="industry" placeholder="E-commerce, healthcare, education..." />
+                  <Field label="Business Address" name="address" placeholder="Street, city, state or province" />
                   <button
                     className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-primary px-4 font-semibold text-panel disabled:opacity-70"
                     disabled={busyAction !== null}

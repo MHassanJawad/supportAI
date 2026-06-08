@@ -41,10 +41,10 @@ export default function HomePage() {
           </Link>
           <div className="flex items-center gap-2">
             <div className="hidden items-center gap-2 sm:flex">
-              <Link className="rounded-full border border-line bg-panel px-4 py-2 text-sm font-medium hover:shadow-soft" href="/customer/auth">
+              <Link className="rounded-full border border-line bg-panel px-4 py-2 text-sm font-medium hover:shadow-soft" href="/customer/login">
                 Customer login
               </Link>
-              <Link className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-panel hover:shadow-soft" href="/business/auth">
+              <Link className="rounded-full bg-primary px-4 py-2 text-sm font-medium text-panel hover:shadow-soft" href="/business/login">
                 Business login
               </Link>
             </div>
@@ -73,14 +73,14 @@ export default function HomePage() {
               <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                 <Link
                   className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-accent px-6 py-3 font-semibold text-white shadow-soft"
-                  href="/business/auth"
+                  href="/business/register"
                 >
                   Register your business
                   <ArrowRight className="h-4 w-4" />
                 </Link>
                 <Link
                   className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line bg-panel px-6 py-3 font-semibold text-ink shadow-sm"
-                  href="/customer/auth"
+                  href="/customer/login"
                 >
                   Access a business portal
                   <Users className="h-4 w-4" />
@@ -165,13 +165,13 @@ export default function HomePage() {
         <div className="grid gap-4 lg:grid-cols-2">
           <RoleCard
             body="Upload documents, manage FAQs, monitor queries, and publish a customer portal."
-            href="/business/auth"
+            href="/business/register"
             icon={<Building2 className="h-5 w-5" />}
             title="For business owners"
           />
           <RoleCard
             body="Browse support centers, ask AI-powered questions, and get answers from business knowledge bases."
-            href="/customer/auth"
+            href="/customer/login"
             icon={<MessageSquare className="h-5 w-5" />}
             title="For customers"
           />
@@ -182,8 +182,8 @@ export default function HomePage() {
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-6 text-sm text-muted sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <p>SupportAI - AI customer support for modern businesses.</p>
           <div className="flex gap-4">
-            <Link href="/business/auth">Business</Link>
-            <Link href="/customer/auth">Customer</Link>
+            <Link href="/business/login">Business</Link>
+            <Link href="/customer/login">Customer</Link>
             <Link href="/support/demo">Portal</Link>
           </div>
         </div>
@@ -199,7 +199,7 @@ function RoleCard({
   title
 }: {
   body: string;
-  href: "/business/auth" | "/customer/auth";
+  href: "/business/register" | "/customer/login";
   icon: React.ReactNode;
   title: string;
 }) {

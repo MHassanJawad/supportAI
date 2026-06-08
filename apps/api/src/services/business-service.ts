@@ -6,7 +6,7 @@ import { AppError, NotFoundError } from "../errors/app-error";
 export async function createBusiness(input: CreateBusinessInput, userId: string) {
   const { data: existingMemberships, error: existingMembershipsError } = await supabaseAdmin
     .from("business_members")
-    .select("businesses(id, name, industry, created_at)")
+    .select("businesses(id, name, industry, address, created_at)")
     .eq("user_id", userId);
 
   if (existingMembershipsError) {
@@ -25,7 +25,7 @@ export async function createBusiness(input: CreateBusinessInput, userId: string)
 
   const { data: business, error } = await supabaseAdmin
     .from("businesses")
-    .insert({ name: input.name, industry: input.industry })
+    .insert({ name: input.name, industry: input.industry, address: input.address })
     .select("*")
     .single();
 
@@ -62,7 +62,9 @@ export async function createBusiness(input: CreateBusinessInput, userId: string)
   return business;
 }
 
-function getJoinedBusiness(membership: unknown): { id: string; name: string; industry: string; created_at: string } | null {
+function getJoinedBusiness(
+  membership: unknown
+): { id: string; name: string; industry: string; address: string; created_at: string } | null {
   if (!membership || typeof membership !== "object" || !("businesses" in membership)) {
     return null;
   }
@@ -73,7 +75,7 @@ function getJoinedBusiness(membership: unknown): { id: string; name: string; ind
     return null;
   }
 
-  return business as { id: string; name: string; industry: string; created_at: string };
+  return business as { id: string; name: string; industry: string; address: string; created_at: string };
 }
 
 function getBusinessCreateMessage(error: unknown): string {
@@ -130,7 +132,7 @@ function toSafeSupabaseError(error: unknown) {
 export async function getProfile(userId: string) {
   const { data, error } = await supabaseAdmin
     .from("business_members")
-    .select("role, businesses(id, name, industry, created_at)")
+    .select("role, businesses(id, name, industry, address, created_at)")
     .eq("user_id", userId)
     .order("created_at", { ascending: true });
 

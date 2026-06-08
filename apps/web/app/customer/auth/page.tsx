@@ -1,6 +1,6 @@
-// Customer authentication route.
-import { AuthPanel } from "../../../components/AuthPanel";
+// Legacy customer authentication route.
+import { redirect } from "next/navigation";
 
 export default function CustomerAuthPage() {
-  return <AuthPanel role="customer" />;
+  redirect("/customer/login");
 }

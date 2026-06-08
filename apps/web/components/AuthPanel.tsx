@@ -1,61 +1,99 @@
-// Role-aware authentication panel for Supabase email/password sessions.
+// Role-aware single-purpose authentication panel for Supabase email/password sessions.
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Building2, LogIn, ShieldCheck, UserPlus, Users } from "lucide-react";
-import Link from "next/link";
 import { supabase, supabaseConfigError } from "../lib/supabase";
 
 type AuthRole = "business" | "customer";
+type AuthMode = "login" | "register";
+type AuthHref = "/business/login" | "/business/register" | "/customer/login" | "/customer/register";
 
-export function AuthPanel({ role }: { role: AuthRole }) {
+interface AuthPanelProps {
+  mode: AuthMode;
+  role: AuthRole;
+}
+
+export function AuthPanel({ mode, role }: AuthPanelProps) {
   const router = useRouter();
-  const [loginEmail, setLoginEmail] = useState("");
-  const [loginPassword, setLoginPassword] = useState("");
-  const [registerName, setRegisterName] = useState("");
-  const [registerCompany, setRegisterCompany] = useState("");
-  const [registerEmail, setRegisterEmail] = useState("");
-  const [registerPassword, setRegisterPassword] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [businessName, setBusinessName] = useState("");
+  const [businessIndustry, setBusinessIndustry] = useState("");
+  const [businessAddress, setBusinessAddress] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [loginMessage, setLoginMessage] = useState("");
-  const [registerMessage, setRegisterMessage] = useState("");
+  const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const copy = useMemo(
-    () =>
-      role === "business"
-        ? {
-            eyebrow: "Business access",
-            heading: "Manage your AI support workspace.",
-            body: "Upload documents, manage FAQs, inspect customer questions, and publish a support portal for your customers.",
-            loginTitle: "Business login",
-            registerTitle: "Register business",
-            registerBody: "Create an owner account for a new business workspace.",
-            redirectTo: "/business/dashboard" as const,
-            alternateHref: "/customer/auth" as const,
-            alternateLabel: "Customer login",
-            icon: <Building2 className="h-5 w-5" />
-          }
-        : {
-            eyebrow: "Customer access",
-            heading: "Find answers from businesses you use.",
-            body: "Use your customer dashboard to browse available support portals and ask questions from business knowledge bases.",
-            loginTitle: "Customer login",
-            registerTitle: "Register customer",
-            registerBody: "Create a customer account for support access.",
-            redirectTo: "/customer/dashboard" as const,
-            alternateHref: "/business/auth" as const,
-            alternateLabel: "Business login",
-            icon: <Users className="h-5 w-5" />
-          },
-    [role]
-  );
+  const isBusiness = role === "business";
+  const isRegister = mode === "register";
+
+  const copy = useMemo(() => {
+    if (isBusiness && isRegister) {
+      return {
+        eyebrow: "Business registration",
+        heading: "Register your business workspace.",
+        body: "Create an owner account and save the business details SupportAI needs to prepare your support dashboard.",
+        cardTitle: "Business information",
+        cardBody: "Use your official business details so your customer support portal is easy to recognize.",
+        dashboardHref: "/business/dashboard" as const,
+        switchHref: "/business/login" as AuthHref,
+        switchLabel: "Already have a registered business? Log in to your workspace.",
+        submitLabel: "Register business",
+        submittingLabel: "Creating business account..."
+      };
+    }
+
+    if (isBusiness) {
+      return {
+        eyebrow: "Business login",
+        heading: "Welcome back to your workspace.",
+        body: "Sign in to manage documents, FAQs, analytics, and the customer support portal for your business.",
+        cardTitle: "Business login",
+        cardBody: "Access your existing business owner account.",
+        dashboardHref: "/business/dashboard" as const,
+        switchHref: "/business/register" as AuthHref,
+        switchLabel: "New to SupportAI? Register your business.",
+        submitLabel: "Sign in",
+        submittingLabel: "Signing in..."
+      };
+    }
+
+    if (isRegister) {
+      return {
+        eyebrow: "Customer registration",
+        heading: "Create your customer account.",
+        body: "Browse business support centers and keep your customer support conversations in one place.",
+        cardTitle: "Customer account",
+        cardBody: "Create a customer profile for asking questions across available business portals.",
+        dashboardHref: "/customer/dashboard" as const,
+        switchHref: "/customer/login" as AuthHref,
+        switchLabel: "Already have a customer account? Log in instead.",
+        submitLabel: "Create customer account",
+        submittingLabel: "Creating account..."
+      };
+    }
+
+    return {
+      eyebrow: "Customer login",
+      heading: "Find support from businesses you use.",
+      body: "Sign in to browse available support portals and continue previous conversations.",
+      cardTitle: "Customer login",
+      cardBody: "Access your customer dashboard.",
+      dashboardHref: "/customer/dashboard" as const,
+      switchHref: "/customer/register" as AuthHref,
+      switchLabel: "New customer? Create an account.",
+      submitLabel: "Sign in",
+      submittingLabel: "Signing in..."
+    };
+  }, [isBusiness, isRegister]);
 
   useEffect(() => {
     if (supabaseConfigError) {
-      setLoginMessage(supabaseConfigError);
-      setRegisterMessage(supabaseConfigError);
+      setMessage(supabaseConfigError);
     }
   }, []);
 
@@ -64,31 +102,31 @@ export function AuthPanel({ role }: { role: AuthRole }) {
       return;
     }
 
-    const normalizedEmail = loginEmail.trim();
-    if (!normalizedEmail || !loginPassword) {
-      setLoginMessage("Enter your email and password.");
+    const normalizedEmail = email.trim();
+    if (!normalizedEmail || !password) {
+      setMessage("Enter your email and password.");
       return;
     }
 
     if (supabaseConfigError) {
-      setLoginMessage(supabaseConfigError);
+      setMessage(supabaseConfigError);
       return;
     }
 
-    setLoginMessage("");
+    setMessage("");
     setIsSubmitting(true);
 
     try {
-      const result = await supabase.auth.signInWithPassword({ email: normalizedEmail, password: loginPassword });
+      const result = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
 
       if (result.error) {
-        setLoginMessage(result.error.message);
+        setMessage(result.error.message);
         return;
       }
 
-      router.push(copy.redirectTo);
+      router.push(copy.dashboardHref);
     } catch {
-      setLoginMessage("Unable to reach auth service. Verify Supabase URL/key and network connectivity.");
+      setMessage("Unable to reach auth service. Verify Supabase URL/key and network connectivity.");
     } finally {
       setIsSubmitting(false);
     }
@@ -99,183 +137,207 @@ export function AuthPanel({ role }: { role: AuthRole }) {
       return;
     }
 
-    const normalizedEmail = registerEmail.trim();
-    if (!registerName.trim()) {
-      setRegisterMessage("Enter your name.");
+    const normalizedEmail = email.trim();
+    if (!fullName.trim()) {
+      setMessage(isBusiness ? "Enter the business owner name." : "Enter your full name.");
       return;
     }
 
-    if (role === "business" && !registerCompany.trim()) {
-      setRegisterMessage("Enter your business name.");
+    if (isBusiness && !businessName.trim()) {
+      setMessage("Enter your business name.");
+      return;
+    }
+
+    if (isBusiness && !businessIndustry.trim()) {
+      setMessage("Enter your business industry.");
+      return;
+    }
+
+    if (isBusiness && businessAddress.trim().length < 5) {
+      setMessage("Enter your business address.");
       return;
     }
 
     if (!normalizedEmail) {
-      setRegisterMessage(role === "business" ? "Enter a work email address." : "Enter an email address.");
+      setMessage(isBusiness ? "Enter a business email address." : "Enter an email address.");
       return;
     }
 
-    if (registerPassword.length < 8) {
-      setRegisterMessage("Password must be at least 8 characters.");
+    if (password.length < 8) {
+      setMessage("Password must be at least 8 characters.");
       return;
     }
 
-    if (registerPassword !== confirmPassword) {
-      setRegisterMessage("Passwords do not match.");
+    if (password !== confirmPassword) {
+      setMessage("Passwords do not match.");
       return;
     }
 
     if (supabaseConfigError) {
-      setRegisterMessage(supabaseConfigError);
+      setMessage(supabaseConfigError);
       return;
     }
 
-    setRegisterMessage("");
+    setMessage("");
     setIsSubmitting(true);
 
     try {
       const result = await supabase.auth.signUp({
         email: normalizedEmail,
-        password: registerPassword,
+        password,
         options: {
           data: {
             account_type: role,
-            full_name: registerName.trim(),
-            ...(role === "business" ? { company_name: registerCompany.trim() } : {})
+            full_name: fullName.trim(),
+            ...(isBusiness
+              ? {
+                  company_industry: businessIndustry.trim(),
+                  company_address: businessAddress.trim(),
+                  company_name: businessName.trim()
+                }
+              : {})
           }
         }
       });
 
       if (result.error) {
-        setRegisterMessage(result.error.message);
+        setMessage(result.error.message);
         return;
       }
 
       if (result.data.session) {
-        router.push(copy.redirectTo);
+        router.push(copy.dashboardHref);
         return;
       }
 
-      setRegisterMessage("Account created. Check your email if confirmation is enabled.");
+      setMessage("Account created. Check your email if confirmation is enabled.");
     } catch {
-      setRegisterMessage("Unable to reach auth service. Verify Supabase URL/key and network connectivity.");
+      setMessage("Unable to reach auth service. Verify Supabase URL/key and network connectivity.");
     } finally {
       setIsSubmitting(false);
     }
   }
 
+  const icon = isRegister ? <UserPlus className="h-5 w-5" /> : <LogIn className="h-5 w-5" />;
+
   return (
-    <main className="min-h-screen bg-mist px-5 py-8">
-      <div className="mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-6xl items-center gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+    <main className="min-h-screen bg-mist px-5 py-8 text-ink">
+      <div className="mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-6xl items-center gap-8 lg:grid-cols-[0.95fr_1.05fr]">
         <section className="space-y-6">
-          <Link className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-ink" href="/">
+          <Link className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-muted hover:text-ink" href="/">
             <ArrowLeft className="h-4 w-4" />
             Back to home
           </Link>
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wider text-teal">{copy.eyebrow}</p>
-            <h1 className="mt-3 max-w-xl text-4xl font-semibold leading-tight text-ink sm:text-5xl">{copy.heading}</h1>
-            <p className="mt-4 max-w-lg text-base leading-7 text-slate-600">{copy.body}</p>
+            <p className="text-sm font-semibold uppercase tracking-wider text-accent">{copy.eyebrow}</p>
+            <h1 className="mt-3 max-w-xl font-display text-4xl font-semibold leading-tight sm:text-5xl">{copy.heading}</h1>
+            <p className="mt-4 max-w-lg text-base leading-7 text-muted">{copy.body}</p>
           </div>
-          <div className="grid gap-3 text-sm text-slate-700 sm:grid-cols-3 lg:grid-cols-1">
+          <div className="grid gap-3 text-sm text-muted sm:grid-cols-3 lg:grid-cols-1">
             <TrustItem icon={<ShieldCheck className="h-4 w-4" />} label="Secure Supabase sessions" />
-            <TrustItem icon={copy.icon} label={role === "business" ? "Owner workspace" : "Customer dashboard"} />
-            <Link className="rounded border border-line bg-white px-3 py-2 shadow-sm hover:bg-white/70" href={copy.alternateHref}>
-              {copy.alternateLabel}
-            </Link>
+            <TrustItem
+              icon={isBusiness ? <Building2 className="h-4 w-4" /> : <Users className="h-4 w-4" />}
+              label={isBusiness ? "Business owner access" : "Customer dashboard"}
+            />
           </div>
         </section>
 
-        <section className="grid gap-4 md:grid-cols-2">
-          <div className="rounded border border-line bg-white p-5 shadow-sm">
-            <div className="mb-5">
-              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded bg-ink text-white">
-                <LogIn className="h-5 w-5" />
-              </div>
-              <h2 className="text-xl font-semibold text-ink">{copy.loginTitle}</h2>
-              <p className="mt-1 text-sm text-slate-600">Access your existing account.</p>
-            </div>
-            <div className="space-y-3">
-              <input
-                className="w-full rounded border border-line px-3 py-2"
-                onChange={(event) => setLoginEmail(event.target.value)}
-                placeholder="Email"
-                type="email"
-                value={loginEmail}
-              />
-              <input
-                className="w-full rounded border border-line px-3 py-2"
-                onChange={(event) => setLoginPassword(event.target.value)}
-                placeholder="Password"
-                type="password"
-                value={loginPassword}
-              />
-              <button
-                className="w-full rounded bg-ink px-4 py-2 font-medium text-white disabled:cursor-not-allowed disabled:opacity-70"
-                disabled={isSubmitting}
-                onClick={submitLogin}
-                type="button"
-              >
-                {isSubmitting ? "Signing in..." : "Sign in"}
-              </button>
-              {loginMessage ? <p className="text-sm text-coral">{loginMessage}</p> : null}
-            </div>
+        <section className="surface mx-auto w-full max-w-xl rounded-[28px] p-5">
+          <div className="mb-6">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-panel">{icon}</div>
+            <h2 className="font-display text-2xl font-semibold">{copy.cardTitle}</h2>
+            <p className="mt-2 text-sm leading-6 text-muted">{copy.cardBody}</p>
           </div>
 
-          <div className="rounded border border-line bg-white p-5 shadow-sm">
-            <div className="mb-5">
-              <div className="mb-3 flex h-10 w-10 items-center justify-center rounded bg-teal text-white">
-                <UserPlus className="h-5 w-5" />
-              </div>
-              <h2 className="text-xl font-semibold text-ink">{copy.registerTitle}</h2>
-              <p className="mt-1 text-sm text-slate-600">{copy.registerBody}</p>
-            </div>
-            <div className="space-y-3">
-              <input
-                className="w-full rounded border border-line px-3 py-2"
-                onChange={(event) => setRegisterName(event.target.value)}
-                placeholder="Full name"
-                value={registerName}
-              />
-              {role === "business" ? (
-                <input
-                  className="w-full rounded border border-line px-3 py-2"
-                  onChange={(event) => setRegisterCompany(event.target.value)}
-                  placeholder="Business name"
-                  value={registerCompany}
-                />
-              ) : null}
-              <input
-                className="w-full rounded border border-line px-3 py-2"
-                onChange={(event) => setRegisterEmail(event.target.value)}
-                placeholder={role === "business" ? "Work email" : "Email"}
-                type="email"
-                value={registerEmail}
-              />
-              <input
-                className="w-full rounded border border-line px-3 py-2"
-                onChange={(event) => setRegisterPassword(event.target.value)}
-                placeholder="Password"
-                type="password"
-                value={registerPassword}
-              />
-              <input
-                className="w-full rounded border border-line px-3 py-2"
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (isRegister) {
+                submitRegistration().catch(() => setMessage("Something went wrong while creating your account."));
+              } else {
+                submitLogin().catch(() => setMessage("Something went wrong while signing in."));
+              }
+            }}
+          >
+            {isRegister ? (
+              <>
+                {isBusiness ? (
+                  <>
+                    <Field
+                      label="Business name"
+                      onChange={(event) => setBusinessName(event.target.value)}
+                      placeholder="Acme Retail"
+                      value={businessName}
+                    />
+                    <Field
+                      label="Industry"
+                      onChange={(event) => setBusinessIndustry(event.target.value)}
+                      placeholder="E-commerce, healthcare, education..."
+                      value={businessIndustry}
+                    />
+                    <Field
+                      label="Business address"
+                      onChange={(event) => setBusinessAddress(event.target.value)}
+                      placeholder="Street, city, state or province"
+                      value={businessAddress}
+                    />
+                    <Field
+                      label="Owner name"
+                      onChange={(event) => setFullName(event.target.value)}
+                      placeholder="Hassan Jawad"
+                      value={fullName}
+                    />
+                  </>
+                ) : (
+                  <Field
+                    label="Full name"
+                    onChange={(event) => setFullName(event.target.value)}
+                    placeholder="Hassan Jawad"
+                    value={fullName}
+                  />
+                )}
+              </>
+            ) : null}
+
+            <Field
+              label={isBusiness ? "Business email" : "Email"}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder={isBusiness ? "owner@business.com" : "you@example.com"}
+              type="email"
+              value={email}
+            />
+            <Field
+              label="Password"
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="At least 8 characters"
+              type="password"
+              value={password}
+            />
+            {isRegister ? (
+              <Field
+                label="Confirm password"
                 onChange={(event) => setConfirmPassword(event.target.value)}
-                placeholder="Confirm password"
+                placeholder="Re-enter password"
                 type="password"
                 value={confirmPassword}
               />
-              <button
-                className="w-full rounded bg-teal px-4 py-2 font-medium text-white disabled:cursor-not-allowed disabled:opacity-70"
-                disabled={isSubmitting}
-                onClick={submitRegistration}
-                type="button"
-              >
-                {isSubmitting ? "Creating..." : "Create account"}
-              </button>
-              {registerMessage ? <p className="text-sm text-coral">{registerMessage}</p> : null}
-            </div>
+            ) : null}
+
+            <button
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-accent px-4 font-semibold text-white shadow-soft disabled:cursor-not-allowed disabled:opacity-70"
+              disabled={isSubmitting}
+              type="submit"
+            >
+              {isSubmitting ? copy.submittingLabel : copy.submitLabel}
+            </button>
+            {message ? <p className="rounded-2xl border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">{message}</p> : null}
+          </form>
+
+          <div className="mt-5 border-t border-line pt-5 text-center text-sm text-muted">
+            <Link className="font-semibold text-accent hover:text-primary" href={copy.switchHref}>
+              {copy.switchLabel}
+            </Link>
           </div>
         </section>
       </div>
@@ -283,10 +345,37 @@ export function AuthPanel({ role }: { role: AuthRole }) {
   );
 }
 
+function Field({
+  label,
+  onChange,
+  placeholder,
+  type = "text",
+  value
+}: {
+  label: string;
+  onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  placeholder: string;
+  type?: string;
+  value: string;
+}) {
+  return (
+    <label className="grid gap-2 text-sm font-medium">
+      {label}
+      <input
+        className="min-h-11 rounded-2xl border border-line bg-panel px-3 text-sm outline-none focus:border-accent focus:ring-4 focus:ring-accent/10"
+        onChange={onChange}
+        placeholder={placeholder}
+        type={type}
+        value={value}
+      />
+    </label>
+  );
+}
+
 function TrustItem({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
-    <div className="flex items-center gap-2 rounded border border-line bg-white px-3 py-2 shadow-sm">
-      <span className="text-teal">{icon}</span>
+    <div className="flex min-h-11 items-center gap-2 rounded-2xl border border-line bg-panel px-3 py-2 shadow-sm">
+      <span className="text-accent">{icon}</span>
       <span>{label}</span>
     </div>
   );

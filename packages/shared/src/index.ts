@@ -9,7 +9,8 @@ export const uuidSchema = z.string().uuid();
 
 export const createBusinessSchema = z.object({
   name: z.string().trim().min(2).max(120),
-  industry: z.string().trim().min(2).max(80)
+  industry: z.string().trim().min(2).max(80),
+  address: z.string().trim().min(5).max(240)
 });
 
 export const createFaqSchema = z.object({

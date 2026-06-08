@@ -1,6 +1,6 @@
-// Business authentication route.
-import { AuthPanel } from "../../../components/AuthPanel";
+// Legacy business authentication route.
+import { redirect } from "next/navigation";
 
 export default function BusinessAuthPage() {
-  return <AuthPanel role="business" />;
+  redirect("/business/login");
 }
