@@ -4,12 +4,13 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Building2, LogIn, ShieldCheck, UserPlus, Users } from "lucide-react";
+import { ArrowLeft, Building2, CheckCircle2, LogIn, Mail, RefreshCw, ShieldCheck, UserPlus, Users } from "lucide-react";
 import { supabase, supabaseConfigError } from "../lib/supabase";
 
 type AuthRole = "business" | "customer";
 type AuthMode = "login" | "register";
 type AuthHref = "/business/login" | "/business/register" | "/customer/login" | "/customer/register";
+type Feedback = { tone: "error" | "success"; text: string } | null;
 
 interface AuthPanelProps {
   mode: AuthMode;
@@ -25,11 +26,14 @@ export function AuthPanel({ mode, role }: AuthPanelProps) {
   const [businessIndustry, setBusinessIndustry] = useState("");
   const [businessAddress, setBusinessAddress] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [message, setMessage] = useState("");
+  const [feedback, setFeedback] = useState<Feedback>(null);
+  const [pendingEmail, setPendingEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResending, setIsResending] = useState(false);
 
   const isBusiness = role === "business";
   const isRegister = mode === "register";
+  const forgotPasswordHref = isBusiness ? "/business/forgot-password" : "/customer/forgot-password";
 
   const copy = useMemo(() => {
     if (isBusiness && isRegister) {
@@ -93,7 +97,7 @@ export function AuthPanel({ mode, role }: AuthPanelProps) {
 
   useEffect(() => {
     if (supabaseConfigError) {
-      setMessage(supabaseConfigError);
+      setFeedback({ tone: "error", text: supabaseConfigError });
     }
   }, []);
 
@@ -104,29 +108,29 @@ export function AuthPanel({ mode, role }: AuthPanelProps) {
 
     const normalizedEmail = email.trim();
     if (!normalizedEmail || !password) {
-      setMessage("Enter your email and password.");
+      setFeedback({ tone: "error", text: "Enter your email and password." });
       return;
     }
 
     if (supabaseConfigError) {
-      setMessage(supabaseConfigError);
+      setFeedback({ tone: "error", text: supabaseConfigError });
       return;
     }
 
-    setMessage("");
+    setFeedback(null);
     setIsSubmitting(true);
 
     try {
       const result = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
 
       if (result.error) {
-        setMessage(result.error.message);
+        setFeedback({ tone: "error", text: result.error.message });
         return;
       }
 
       router.push(copy.dashboardHref);
     } catch {
-      setMessage("Unable to reach auth service. Verify Supabase URL/key and network connectivity.");
+      setFeedback({ tone: "error", text: "Unable to reach auth service. Verify Supabase URL/key and network connectivity." });
     } finally {
       setIsSubmitting(false);
     }
@@ -139,46 +143,46 @@ export function AuthPanel({ mode, role }: AuthPanelProps) {
 
     const normalizedEmail = email.trim();
     if (!fullName.trim()) {
-      setMessage(isBusiness ? "Enter the business owner name." : "Enter your full name.");
+      setFeedback({ tone: "error", text: isBusiness ? "Enter the business owner name." : "Enter your full name." });
       return;
     }
 
     if (isBusiness && !businessName.trim()) {
-      setMessage("Enter your business name.");
+      setFeedback({ tone: "error", text: "Enter your business name." });
       return;
     }
 
     if (isBusiness && !businessIndustry.trim()) {
-      setMessage("Enter your business industry.");
+      setFeedback({ tone: "error", text: "Enter your business industry." });
       return;
     }
 
     if (isBusiness && businessAddress.trim().length < 5) {
-      setMessage("Enter your business address.");
+      setFeedback({ tone: "error", text: "Enter your business address." });
       return;
     }
 
     if (!normalizedEmail) {
-      setMessage(isBusiness ? "Enter a business email address." : "Enter an email address.");
+      setFeedback({ tone: "error", text: isBusiness ? "Enter a business email address." : "Enter an email address." });
       return;
     }
 
     if (password.length < 8) {
-      setMessage("Password must be at least 8 characters.");
+      setFeedback({ tone: "error", text: "Password must be at least 8 characters." });
       return;
     }
 
     if (password !== confirmPassword) {
-      setMessage("Passwords do not match.");
+      setFeedback({ tone: "error", text: "Passwords do not match." });
       return;
     }
 
     if (supabaseConfigError) {
-      setMessage(supabaseConfigError);
+      setFeedback({ tone: "error", text: supabaseConfigError });
       return;
     }
 
-    setMessage("");
+    setFeedback(null);
     setIsSubmitting(true);
 
     try {
@@ -186,6 +190,7 @@ export function AuthPanel({ mode, role }: AuthPanelProps) {
         email: normalizedEmail,
         password,
         options: {
+          emailRedirectTo: `${window.location.origin}${copy.dashboardHref}`,
           data: {
             account_type: role,
             full_name: fullName.trim(),
@@ -201,7 +206,16 @@ export function AuthPanel({ mode, role }: AuthPanelProps) {
       });
 
       if (result.error) {
-        setMessage(result.error.message);
+        const isExistingAccount =
+          result.error.code === "user_already_exists" ||
+          result.error.message.toLowerCase().includes("already registered");
+
+        setFeedback({
+          tone: "error",
+          text: isExistingAccount
+            ? "An account with this email already exists. Use the login link below instead of registering again."
+            : result.error.message
+        });
         return;
       }
 
@@ -210,11 +224,41 @@ export function AuthPanel({ mode, role }: AuthPanelProps) {
         return;
       }
 
-      setMessage("Account created. Check your email if confirmation is enabled.");
+      setPassword("");
+      setConfirmPassword("");
+      setPendingEmail(normalizedEmail);
     } catch {
-      setMessage("Unable to reach auth service. Verify Supabase URL/key and network connectivity.");
+      setFeedback({ tone: "error", text: "Unable to reach auth service. Verify Supabase URL/key and network connectivity." });
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function resendConfirmation() {
+    if (!pendingEmail || isResending) {
+      return;
+    }
+
+    setIsResending(true);
+    setFeedback(null);
+
+    try {
+      const result = await supabase.auth.resend({
+        type: "signup",
+        email: pendingEmail,
+        options: { emailRedirectTo: `${window.location.origin}${copy.dashboardHref}` }
+      });
+
+      if (result.error) {
+        setFeedback({ tone: "error", text: result.error.message });
+        return;
+      }
+
+      setFeedback({ tone: "success", text: "Confirmation email sent again. It may take a minute to arrive." });
+    } catch {
+      setFeedback({ tone: "error", text: "Could not resend the confirmation email. Please try again shortly." });
+    } finally {
+      setIsResending(false);
     }
   }
 
@@ -242,21 +286,41 @@ export function AuthPanel({ mode, role }: AuthPanelProps) {
           </div>
         </section>
 
-        <section className="surface mx-auto w-full max-w-xl rounded-[28px] p-5">
+        <section className="surface mx-auto w-full max-w-xl rounded-[28px] p-5 sm:p-7">
+          {pendingEmail ? (
+            <RegistrationConfirmation
+              feedback={feedback}
+              isResending={isResending}
+              loginHref={copy.switchHref}
+              onChangeEmail={() => {
+                setPendingEmail("");
+                setFeedback(null);
+              }}
+              onResend={() => void resendConfirmation()}
+              pendingEmail={pendingEmail}
+            />
+          ) : (
+            <>
           <div className="mb-6">
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-panel">{icon}</div>
             <h2 className="font-display text-2xl font-semibold">{copy.cardTitle}</h2>
             <p className="mt-2 text-sm leading-6 text-muted">{copy.cardBody}</p>
           </div>
 
+          {feedback ? <FeedbackAlert feedback={feedback} /> : null}
+
           <form
             className="space-y-4"
             onSubmit={(event) => {
               event.preventDefault();
               if (isRegister) {
-                submitRegistration().catch(() => setMessage("Something went wrong while creating your account."));
+                submitRegistration().catch(() =>
+                  setFeedback({ tone: "error", text: "Something went wrong while creating your account." })
+                );
               } else {
-                submitLogin().catch(() => setMessage("Something went wrong while signing in."));
+                submitLogin().catch(() =>
+                  setFeedback({ tone: "error", text: "Something went wrong while signing in." })
+                );
               }
             }}
           >
@@ -314,6 +378,13 @@ export function AuthPanel({ mode, role }: AuthPanelProps) {
               type="password"
               value={password}
             />
+            {!isRegister ? (
+              <div className="-mt-2 flex justify-end">
+                <Link className="text-sm font-semibold text-accent hover:text-primary" href={forgotPasswordHref}>
+                  Forgot password?
+                </Link>
+              </div>
+            ) : null}
             {isRegister ? (
               <Field
                 label="Confirm password"
@@ -331,7 +402,6 @@ export function AuthPanel({ mode, role }: AuthPanelProps) {
             >
               {isSubmitting ? copy.submittingLabel : copy.submitLabel}
             </button>
-            {message ? <p className="rounded-2xl border border-coral/30 bg-coral/10 px-3 py-2 text-sm text-coral">{message}</p> : null}
           </form>
 
           <div className="mt-5 border-t border-line pt-5 text-center text-sm text-muted">
@@ -339,9 +409,98 @@ export function AuthPanel({ mode, role }: AuthPanelProps) {
               {copy.switchLabel}
             </Link>
           </div>
+            </>
+          )}
         </section>
       </div>
     </main>
+  );
+}
+
+function RegistrationConfirmation({
+  feedback,
+  isResending,
+  loginHref,
+  onChangeEmail,
+  onResend,
+  pendingEmail
+}: {
+  feedback: Feedback;
+  isResending: boolean;
+  loginHref: AuthHref;
+  onChangeEmail: () => void;
+  onResend: () => void;
+  pendingEmail: string;
+}) {
+  return (
+    <div aria-live="polite" className="py-2 text-center">
+      <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-accent/10 text-accent">
+        <Mail className="h-8 w-8" />
+      </div>
+      <p className="mt-5 text-sm font-semibold uppercase tracking-wider text-accent">One more step</p>
+      <h2 className="mt-2 font-display text-3xl font-semibold">Check your inbox</h2>
+      <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-muted">
+        We sent a confirmation link to <strong className="break-all text-ink">{pendingEmail}</strong>. Open it to activate
+        your account and continue to your dashboard.
+      </p>
+
+      <div className="mx-auto mt-6 max-w-md rounded-2xl border border-line bg-mist p-4 text-left text-sm leading-6 text-muted">
+        <p className="flex items-start gap-2">
+          <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-accent" />
+          Check your spam, junk, and promotions folders if it is not in your inbox.
+        </p>
+        <p className="mt-3 flex items-start gap-2">
+          <LogIn className="mt-1 h-4 w-4 shrink-0 text-accent" />
+          Already confirmed this email before? Supabase will not send another signup email. Use Go to login instead.
+        </p>
+      </div>
+
+      {feedback ? (
+        <div className="mt-4">
+          <FeedbackAlert feedback={feedback} />
+        </div>
+      ) : null}
+
+      <div className="mt-6 grid gap-3 sm:grid-cols-2">
+        <button
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-accent px-4 font-semibold text-white disabled:opacity-60"
+          disabled={isResending}
+          onClick={onResend}
+          type="button"
+        >
+          <RefreshCw className={`h-4 w-4 ${isResending ? "animate-spin" : ""}`} />
+          {isResending ? "Sending..." : "Resend email"}
+        </button>
+        <Link
+          className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-line bg-panel px-4 font-semibold"
+          href={loginHref}
+        >
+          Go to login
+        </Link>
+      </div>
+      <button
+        className="mt-5 text-sm font-semibold text-muted underline-offset-4 hover:text-ink hover:underline"
+        onClick={onChangeEmail}
+        type="button"
+      >
+        Enter a different email address
+      </button>
+    </div>
+  );
+}
+
+function FeedbackAlert({ feedback }: { feedback: Exclude<Feedback, null> }) {
+  const isError = feedback.tone === "error";
+
+  return (
+    <div
+      className={`mb-4 rounded-2xl border px-4 py-3 text-left text-sm leading-6 ${
+        isError ? "border-coral/35 bg-coral/10 text-coral" : "border-accent/30 bg-accent/10 text-accent"
+      }`}
+      role={isError ? "alert" : "status"}
+    >
+      {feedback.text}
+    </div>
   );
 }
 
